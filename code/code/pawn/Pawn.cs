@@ -39,6 +39,7 @@ public partial class Pawn : AnimatedEntity
 	
 	private bool _panCamera;
 	private float _zoomT;
+	private float _cameraDistance;
 
 	private bool PanCamera
 	{
@@ -112,13 +113,21 @@ public partial class Pawn : AnimatedEntity
 		CitizenAnimationHelper animHelper = new CitizenAnimationHelper( this );
 		animHelper.WithWishVelocity( Velocity );
 		animHelper.WithVelocity( Velocity );
+		
+		// by default rotate character to mouse position
+		var mouseRay = Trace.Ray(MouseOrigin, MouseOrigin + MouseDirection * 1000).Run();
+		if ( mouseRay.Hit )
+		{
+			var lookAt = Rotation.LookAt( (Position - mouseRay.HitPosition).Normal );
+			animHelper.WithLookAt(mouseRay.EndPosition);
+			//Log.Info("LookAt: " + lookAt);
+		}
 
+		
 		// If we're running serverside and Attack1 was just pressed, spawn a ragdoll
 		if ( Game.IsServer && Input.Pressed( InputButton.PrimaryAttack ) )
 		{
 			// hit ground or objects with ray coming from "mouse position"
-			var mouseRay = Trace.Ray(MouseOrigin, MouseOrigin + MouseDirection * 1000).Run();
-
 			if ( mouseRay.Hit )
 			{
 				Log.Info("!!! HIT " + mouseRay.HitPosition + " mouseDirection: " + MouseDirection);
@@ -149,9 +158,9 @@ public partial class Pawn : AnimatedEntity
 		var pos = center;
 		var rot = Camera.Rotation /** Rotation.FromAxis( Vector3.Up, -16 )*/;
 
-		float distance = range * Scale;
+		_cameraDistance = MathX.Lerp(_cameraDistance, range * Scale, 10 * Time.Delta);
 		targetPos = pos /*+ rot.Right * ((CollisionBounds.Mins.x + 32) * Scale)*/;
-		targetPos += rot.Forward * -distance;
+		targetPos += rot.Forward * -_cameraDistance;
 
 		var tr = Trace.Ray( pos, targetPos )
 			.WithAnyTags( "solid" )
