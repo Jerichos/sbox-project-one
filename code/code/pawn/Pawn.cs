@@ -78,8 +78,9 @@ public partial class Pawn : AnimatedEntity
 		_zoomT -= Input.MouseWheel * 0.1f;
 		_zoomT = float.Clamp( _zoomT, 0, 1 );
 
-		MouseDirection = Screen.GetDirection(Mouse.Position);
+		MouseDirection = Screen.GetDirection(MouseCursor.Instance.Position);
 		MouseOrigin = Camera.Position;
+		//Log.Info("MousePosition: " + MouseCursor.Instance.Position + " Direction: " + MouseDirection);
 	}
 
 	/// <summary>
@@ -116,11 +117,11 @@ public partial class Pawn : AnimatedEntity
 		if ( Game.IsServer && Input.Pressed( InputButton.PrimaryAttack ) )
 		{
 			// hit ground or objects with ray coming from "mouse position"
-			var mouseRay = Trace.Ray(MouseOrigin, MouseDirection).Run();
+			var mouseRay = Trace.Ray(MouseOrigin, MouseOrigin + MouseDirection * 1000).Run();
 
 			if ( mouseRay.Hit )
 			{
-				Log.Info("MouseHit " + mouseRay.HitPosition + " mouseDirection: " + MouseDirection);
+				Log.Info("!!! HIT " + mouseRay.HitPosition + " mouseDirection: " + MouseDirection);
 				DebugOverlay.TraceResult(mouseRay, 10f);
 			}
 		}

@@ -30,7 +30,7 @@ public class MouseCursor : Panel
 		if ( !_update )
 			return;
 
-		_lastMousePosition += Mouse.Delta;
+		_lastMousePosition += Mouse.Delta * Time.Delta * 800;
 
 		_lastMousePosition.x = float.Clamp( _lastMousePosition.x, 0, Screen.Size.x - 16);
 		_lastMousePosition.y = float.Clamp( _lastMousePosition.y, 0, Screen.Size.y - 16);
@@ -64,5 +64,13 @@ public class MouseCursor : Panel
 		_image.Style.Display = DisplayMode.Flex;
 		
 		_update = true;
+	}
+
+	public Vector3 GetDirection()
+	{
+		var screenSize = Screen.Size;
+		Vector3 direction = new Vector3(0, 1, 0);
+
+		return direction.Normal;
 	}
 }
