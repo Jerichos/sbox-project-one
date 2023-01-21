@@ -33,8 +33,10 @@ public partial class MyGame : GameManager
 		base.ClientJoined( client );
 
 		// Create a pawn for this client to play with
-		var pawn = new Pawn();
+		var pawn = new Pawn(client);
 		client.Pawn = pawn;
+
+		pawn.Respawn();
 
 		// Get all of the spawnpoints
 		var spawnpoints = Entity.All.OfType<SpawnPoint>();

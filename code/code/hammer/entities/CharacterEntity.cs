@@ -7,7 +7,7 @@ namespace POLYGONWARE.ProjectOne.hammer;
 /// Character entity.
 /// </summary>
 [Library( "character" ), HammerEntity]
-[Title( "Character" ), Category( "Character" ), Icon( "place" )]
+[Title( "Character" ), Category( "Character" ), Icon( "point" )]
 public partial class CharacterEntity : Pawn
 {
 	/// <summary>

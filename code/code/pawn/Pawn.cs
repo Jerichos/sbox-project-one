@@ -13,6 +13,19 @@ public partial class Pawn : AnimatedEntity
 	
 	[Net, Predicted]
 	public BBox BoxCollider { get; set; }
+
+	private ClothingContainer Clothing = new();
+	private IBaseInventory Inventory;
+
+	public Pawn()
+	{
+		Inventory = new Inventory(this);
+	}
+
+	public Pawn( IClient client ) : this()
+	{
+		Clothing.LoadFromClient(client);
+	}
 	
 	/// <summary>
 	/// Called when the entity is first created 
@@ -25,10 +38,18 @@ public partial class Pawn : AnimatedEntity
 		// Use a watermelon model
 		//
 		SetModel( "models/citizen/citizen.vmdl" );
-
+		
+		EnableAllCollisions = true;
 		EnableDrawing = true;
-		EnableHideInFirstPerson = true;
+		EnableHideInFirstPerson = false;
 		EnableShadowInFirstPerson = true;
+		
+		Camera.FirstPersonViewer = null;
+	}
+	
+	public void Respawn()
+	{
+		Clothing.DressEntity( this );
 	}
 	
 	// An example BuildInput method within a player's Pawn class.
@@ -76,7 +97,7 @@ public partial class Pawn : AnimatedEntity
 			ViewAngles = viewAngles.Normal;
 		}
 
-		_zoomT -= Input.MouseWheel * 0.1f;
+		_zoomT -= Input.MouseWheel * 0.2f;
 		_zoomT = float.Clamp( _zoomT, 0, 1 );
 
 		MouseDirection = Screen.GetDirection(MouseCursor.Instance.Position);
@@ -103,8 +124,8 @@ public partial class Pawn : AnimatedEntity
 		// apply it to our position using MoveHelper, which handles collision
 		// detection and sliding across surfaces for us
 		
-		MoveHelper helper = new MoveHelper( Position, Velocity );
-		helper.Trace = helper.Trace.Size( 16 );
+		PawnMove helper = new PawnMove( Position, Velocity );
+		helper.Trace = helper.Trace.Size( 100 );
 		if ( helper.TryMove( Time.Delta ) > 0 )
 		{
 			Position = helper.Position;
@@ -143,31 +164,20 @@ public partial class Pawn : AnimatedEntity
 	{
 		base.FrameSimulate( cl );
 		
-		// zoom
+		// Top Down Camera
+		
 		var maxRange = 250;
 		var minRange = 50;
 		var range = minRange + _zoomT * maxRange;
 
-		// Top Down Camera
 		Camera.Rotation = ViewAngles.ToRotation();
-		Camera.FirstPersonViewer = null;
 
-		Vector3 targetPos;
-		var center = Position + Vector3.Up * 64;
+		var rot = Camera.Rotation;
 
-		var pos = center;
-		var rot = Camera.Rotation /** Rotation.FromAxis( Vector3.Up, -16 )*/;
+		_cameraDistance = MathX.Lerp(_cameraDistance, range * Scale, 10f * Time.Delta);
 
-		_cameraDistance = MathX.Lerp(_cameraDistance, range * Scale, 10 * Time.Delta);
-		targetPos = pos /*+ rot.Right * ((CollisionBounds.Mins.x + 32) * Scale)*/;
-		targetPos += rot.Forward * -_cameraDistance;
-
-		var tr = Trace.Ray( pos, targetPos )
-			.WithAnyTags( "solid" )
-			.Ignore( this )
-			.Radius( 8 )
-			.Run();
-
-		Camera.Position = tr.EndPosition;
+		Camera.Position = Position + Vector3.Up * 64 + rot.Forward * -_cameraDistance;
 	}
+
+	
 }

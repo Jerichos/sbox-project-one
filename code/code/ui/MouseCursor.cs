@@ -62,7 +62,6 @@ public class MouseCursor : Panel
 			return;
 		//_lastMousePosition = Mouse.Position;
 		_image.Style.Display = DisplayMode.Flex;
-		
 		_update = true;
 	}
 
