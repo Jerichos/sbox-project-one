@@ -1,129 +1,72 @@
-﻿using Sandbox;
+﻿using System;
+using Sandbox;
 
 namespace POLYGONWARE.ProjectOne;
 
 public struct PawnMove
 {
-	//
-	// Inputs and Outputs
-	//
 	public Vector3 Position;
 	public Vector3 Velocity;
-	public bool HitWall;
-
-	//
-	// Config
-	//
-	public float GroundBounce;
-	public float WallBounce;
 	public float MaxStandableAngle;
-	public Trace Trace;
 
-	/// <summary>
-	/// Create the movehelper and initialize it with the default settings.
-	/// You can change Trace and MaxStandableAngle after creation.
-	/// </summary>
-	/// <example>
-	/// var move = new MoveHelper( Position, Velocity )
-	/// </example>
 	public PawnMove( Vector3 position, Vector3 velocity, params string[] solidTags ) : this()
 	{
 		Velocity = velocity;
 		Position = position;
-		GroundBounce = 0.0f;
-		WallBounce = 0.0f;
-		MaxStandableAngle = 10.0f;
-
-		Trace = Trace.Ray( 0, 0 )
-						.WorldAndEntities()
-						.WithAnyTags( solidTags );
 	}
 
-	/// <summary>
-	/// Create the movehelper and initialize it with the default settings.
-	/// You can change Trace and MaxStandableAngle after creation.
-	/// </summary>
-	/// <example>
-	/// var move = new MoveHelper( Position, Velocity )
-	/// </example>
 	public PawnMove( Vector3 position, Vector3 velocity ) : this( position, velocity, "solid", "playerclip", "passbullets", "player" )
 	{
 
 	}
 
-	/// <summary>
-	/// Trace this from one position to another
-	/// </summary>
-	public TraceResult TraceFromTo( Vector3 start, Vector3 end )
+	public float MyTryMove(float deltaTime)
 	{
-		return Trace.FromTo( start, end ).Run();
-	}
+		float travelFraction = 1;
 
-	/// <summary>
-	/// Trace this from its current Position to a delta
-	/// </summary>
-	public TraceResult TraceDirection( Vector3 down )
-	{
-		return TraceFromTo( Position, Position + down );
-	}
+		BBox box = new BBox( new Vector3( -15, -15, 1 ), new Vector3( 15, 15, 50 ) );
 
+		var tr = Trace.Box( box, Position, Position + Velocity * deltaTime )
+			.WithAnyTags( "solid" ).Run();
 
-	/// <summary>
-	/// Try to move to the position. Will return the fraction of the desired velocity that we traveled.
-	/// Position and Velocity will be what we recommend using.
-	/// </summary>
-	public float TryMove( float timestep )
-	{
-		var timeLeft = timestep;
-		float travelFraction = 0;
-		HitWall = false;
-
-		using var moveplanes = new VelocityClipPlanes( Velocity );
-
-		for ( int bump = 0; bump < moveplanes.Max; bump++ )
+		if ( tr.Hit )
 		{
-			if ( Velocity.Length.AlmostEqual( 0.0f ) )
-				break;
+			var dot = Vector3.Dot(tr.Direction, tr.Normal);
+			var o = tr.Direction - (tr.Normal * dot);
+			float damp = (1 + dot) * 3f;
+			damp = damp.Clamp( 0, 1 );
 
-			BBox box = new BBox( new Vector3(-20, -20, 1), new Vector3(20, 20, 50) );
-			var pm = Trace.Box( box, Position, Position + Velocity * timeLeft ).Run();
-			DebugOverlay.Box(box, Color.Red, 0.5f);
-			//var pm = TraceFromTo( Position, Position + Velocity * timeLeft );
+			Log.Info("Hit " + tr.Normal + " o " + o.Normal + " dot " + dot + " damp: " + damp);
+			DebugOverlay.Line(tr.HitPosition, tr.HitPosition + o.Normal * 100, 3, true);
+			
+			// backoff a bit from collision
+			Position = tr.EndPosition + tr.Normal * 0.031235f;
 
-			travelFraction += pm.Fraction;
-
-			if ( pm.Hit )
+			var velocityDelta = o.Normal * Velocity.Length * deltaTime * damp;
+			
+			var tr2 = Trace.Box( box, Position, Position + velocityDelta )
+				.WithAnyTags( "solid" ).Run();
+			
+			if ( tr2.Hit )
 			{
-				// There's a bug with sweeping where sometimes the end position is starting in solid, so we get stuck.
-				// Push back by a small margin so this should never happen.
-				Position = pm.EndPosition + pm.Normal * 0.03125f;
+				Log.Info("Tr2 hit");
+				
+				// backoff a bit from collision again
+				Position = tr2.EndPosition + tr2.Normal * 0.031235f;
 			}
 			else
 			{
-				Position = pm.EndPosition;
-
-				break;
+				Position += velocityDelta;
 			}
 
-			moveplanes.StartBump( Velocity );
-
-			if ( bump == 0 && pm.Hit && pm.Normal.Angle( Vector3.Up ) >= MaxStandableAngle )
-			{
-				Log.Info("1 HitWall pm.Hit" + pm.Hit + " angle: " + pm.Normal.Angle( Vector3.Up ));
-				HitWall = true;
-			}
-
-			timeLeft -= timeLeft * pm.Fraction;
-
-			if ( !moveplanes.TryAdd( pm.Normal, ref Velocity, IsFloor( pm ) ? GroundBounce : WallBounce ) )
-				break;
+			return 1;
 		}
-
-		if ( travelFraction == 0 )
-			Velocity = 0;
-
+		else
+			Position += Velocity * deltaTime;
+		
 		return travelFraction;
 	}
+
 
 	/// <summary>
 	/// Return true if this is the trace is a floor. Checks hit and normal angle.
@@ -158,114 +101,5 @@ public struct PawnMove
 
 		newspeed /= speed;
 		Velocity *= newspeed;
-	}
-
-	/// <summary>
-	/// Move our position by this delta using trace. If we hit something we'll stop,
-	/// we won't slide across it nicely like TryMove does.
-	/// </summary>
-	public TraceResult TraceMove( Vector3 delta )
-	{
-		var tr = TraceFromTo( Position, Position + delta );
-		Position = tr.EndPosition;
-		return tr;
-	}
-
-	/// <summary>
-	/// Like TryMove but will also try to step up if it hits a wall
-	/// </summary>
-	public float TryMoveWithStep( float timeDelta, float stepsize )
-	{
-		var startPosition = Position;
-
-		// Make a copy of us to stepMove
-		var stepMove = this;
-
-		// Do a regular move
-		var fraction = TryMove( timeDelta );
-
-		// If it got all the way then that's cool, use it
-		//if ( fraction.AlmostEqual( 0 ) )
-		//	return fraction;
-
-		// Move up (as much as we can)
-		stepMove.TraceMove( Vector3.Up * stepsize );
-
-		// Move across (using existing velocity)
-		var stepFraction = stepMove.TryMove( timeDelta );
-
-		// Move back down
-		var tr = stepMove.TraceMove( Vector3.Down * stepsize );
-
-		// if we didn't land on something, return
-		if ( !tr.Hit ) return fraction;
-
-		// If we landed on a wall then this is no good
-		if ( tr.Normal.Angle( Vector3.Up ) > MaxStandableAngle )
-			return fraction;
-
-		// if the original non stepped attempt moved further use that
-		if ( startPosition.Distance( Position.WithZ( startPosition.z ) ) > startPosition.Distance( stepMove.Position.WithZ( startPosition.z ) ) )
-			return fraction;
-
-		// step move moved further, copy its data to us
-		Position = stepMove.Position;
-		Velocity = stepMove.Velocity;
-		HitWall = stepMove.HitWall;
-
-		return stepFraction;
-	}
-
-	/// <summary>
-	/// Test whether we're stuck, and if we are then unstuck us
-	/// </summary>
-	/// <returns></returns>
-	public bool TryUnstuck()
-	{
-		var tr = TraceFromTo( Position, Position );
-		if ( !tr.StartedSolid ) return true;
-
-		return Unstuck();
-	}
-
-	/// <summary>
-	/// We're inside something solid, lets try to get out of it.
-	/// </summary>
-	bool Unstuck()
-	{
-
-		//
-		// Try going straight up first, people are most of the time stuck in the floor
-		//
-		for ( int i = 1; i < 20; i++ )
-		{
-			var tryPos = Position + Vector3.Up * i;
-
-			var tr = TraceFromTo( tryPos, Position );
-			if ( !tr.StartedSolid )
-			{
-				Position = tryPos + tr.Direction.Normal * (tr.Distance - 0.5f);
-				Velocity = 0;
-				return true;
-			}
-		}
-
-		//
-		// Then fuck it, we got to get unstuck some how, try random shit
-		//
-		for ( int i = 1; i < 100; i++ )
-		{
-			var tryPos = Position + Vector3.Random * i;
-
-			var tr = TraceFromTo( tryPos, Position );
-			if ( !tr.StartedSolid )
-			{
-				Position = tryPos + tr.Direction.Normal * (tr.Distance - 0.5f);
-				Velocity = 0;
-				return true;
-			}
-		}
-
-		return false;
 	}
 }

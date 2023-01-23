@@ -13,13 +13,16 @@ public partial class Pawn : AnimatedEntity
 	
 	[Net, Predicted]
 	public BBox BoxCollider { get; set; }
+	
+	// I guess it's active item in hands?
+	[Net, Predicted] public Entity ActiveChild { get; set; }
 
 	private ClothingContainer Clothing = new();
-	private IBaseInventory Inventory;
+	public IBaseInventory Inventory;
 
 	public Pawn()
 	{
-		Inventory = new Inventory(this);
+		Inventory = new PawnInventory(this);
 	}
 
 	public Pawn( IClient client ) : this()
@@ -50,6 +53,8 @@ public partial class Pawn : AnimatedEntity
 	public void Respawn()
 	{
 		Clothing.DressEntity( this );
+
+		Inventory.Add( new Pistol(), true );
 	}
 	
 	// An example BuildInput method within a player's Pawn class.
@@ -125,8 +130,7 @@ public partial class Pawn : AnimatedEntity
 		// detection and sliding across surfaces for us
 		
 		PawnMove helper = new PawnMove( Position, Velocity );
-		helper.Trace = helper.Trace.Size( 100 );
-		if ( helper.TryMove( Time.Delta ) > 0 )
+		if ( helper.MyTryMove(Time.Delta) > 0 )
 		{
 			Position = helper.Position;
 		}
@@ -179,5 +183,13 @@ public partial class Pawn : AnimatedEntity
 		Camera.Position = Position + Vector3.Up * 64 + rot.Forward * -_cameraDistance;
 	}
 
-	
+	public override void OnChildAdded( Entity child )
+	{
+		Inventory?.OnChildAdded( child );
+	}
+
+	public override void OnChildRemoved( Entity child )
+	{
+		Inventory?.OnChildRemoved( child );
+	}
 }
