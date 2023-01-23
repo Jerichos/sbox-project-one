@@ -109,16 +109,20 @@ public partial class BaseWeapon : BaseCarriable
 		var trace = Trace.Ray( start, end )
 			.UseHitboxes()
 			.WithAnyTags( "solid", "player", "npc" )
-			.Ignore( this )
+			.Ignore( this ).Ignore(Owner)
 			.Size( radius );
 
 		if ( !underwater )
 			trace = trace.WithAnyTags( "water" );
 
 		var traceResult = trace.Run();
-
+		DebugOverlay.Line(traceResult.StartPosition, traceResult.EndPosition, 3, true);
+		Log.Info("1 Trace bullet " + start + " end " + end + " hit: ");
 		if ( traceResult.Hit )
+		{
+			Log.Info("2 Trace bullet " + start + " end " + end + " hit: " + traceResult.Entity.Name);
 			yield return traceResult;
+		}
 	}
 
 	public override Sound PlaySound( string soundName, string attachment )

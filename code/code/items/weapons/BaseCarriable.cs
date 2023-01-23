@@ -18,6 +18,11 @@ public class BaseCarriable : AnimatedEntity
 		// EnableShadowInFirstPerson = true;
 	}
 
+	public virtual void BuildInput( Entity carrier )
+	{
+		
+	}
+
 	public virtual bool CanCarry( Entity carrier )
 	{
 		return true;
@@ -31,7 +36,7 @@ public class BaseCarriable : AnimatedEntity
 		SetParent(carrier, true);
 		Owner = carrier;
 		EnableAllCollisions = false;
-		EnableDrawing = true;
+		EnableDrawing = false;
 	}
 
 	public virtual void SimulateAnimator( CitizenAnimationHelper animator )

@@ -19,6 +19,7 @@ public class BaseInventory : IBaseInventory
 			if ( Owner is Pawn pawn )
 			{
 				pawn.ActiveChild = value;
+				value.EnableDrawing = true;
 			}
 		}
 	}

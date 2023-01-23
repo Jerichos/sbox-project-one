@@ -40,7 +40,7 @@ public struct PistolData : IWeaponData
 	public string SoundPath => "rust_pistol.shoot";
 	public float PrimaryRate => 15.0f;
 	public float SecondaryRate => 1.0f;
-	public float Spread => 0.05f;
+	public float Spread => 0.0f;
 	public float Force => 1.5f;
 	public float Damage => 9.0f;
 	public float BulletSize => 3.0f;

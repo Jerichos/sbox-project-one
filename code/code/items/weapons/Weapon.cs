@@ -172,8 +172,10 @@ public partial class Weapon : BaseWeapon, IUse
 	public virtual void ShootBullet( Vector3 pos, Vector3 dir, float spread, float force, float damage, float bulletSize )
 	{
 		var forward = dir;
-		forward *= (Vector3.Random + Vector3.Random + Vector3.Random + Vector3.Random) * spread * 0.25f;
+		//forward += (Vector3.Random + Vector3.Random + Vector3.Random + Vector3.Random) * spread * 0.25f;
 		forward = forward.Normal;
+		
+		Log.Info("ShotBullet " + pos + " dir: " + dir + " forward: " + forward);
 
 		foreach ( var result in TraceBullet(pos, pos + forward * 5000, bulletSize) )
 		{
@@ -199,10 +201,12 @@ public partial class Weapon : BaseWeapon, IUse
 	/// </summary>
 	public virtual void ShootBullet( float spread, float force, float damage, float bulletSize )
 	{
+		Log.Info("shoot bullet: " + Owner.AimRay.Forward);
 		Game.SetRandomSeed(Time.Tick);
 
-		var ray = Owner.AimRay;
-		ShootBullet(ray.Position, ray.Forward, spread, force, damage, bulletSize);
+		// var ray = Owner.AimRay;
+		// ShootBullet(ray.Position, ray.Forward, spread, force, damage, bulletSize);
+		ShootBullet(Position, Rotation.Forward, spread, force, damage, bulletSize);
 	}
 
 

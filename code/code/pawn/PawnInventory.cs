@@ -7,6 +7,8 @@ namespace POLYGONWARE.ProjectOne;
 public partial class PawnInventory : BaseInventory
 {
 	public PawnInventory(Pawn owner) : base(owner) { }
+	
+	
 
 	public override bool CanAdd( Entity entity )
 	{
