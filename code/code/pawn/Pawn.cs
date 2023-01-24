@@ -8,9 +8,6 @@ public partial class Pawn : AnimatedEntity
 	[Net] public float SprintSpeed { get; set; } = 320.0f;
 	[Net] public float WalkSpeed { get; set; } = 150.0f;
 	
-	[Net, Predicted]
-	public PawnController Controller { get; set; }
-	
 	// I guess it's active item in hands?
 	[Net, Predicted] public Entity ActiveChild { get; set; }
 	[ClientInput] public Entity ActiveChildInput { get; set; }
@@ -108,6 +105,9 @@ public partial class Pawn : AnimatedEntity
 
 		MouseDirection = Screen.GetDirection(MouseCursor.Instance.Position);
 		MouseOrigin = Camera.Position;
+
+		if ( ActiveChildInput == null )
+			ActiveChildInput = ActiveChild;
 		
 		ActiveChild?.BuildInput();
 		//Log.Info("MousePosition: " + MouseCursor.Instance.Position + " Direction: " + MouseDirection);
@@ -120,12 +120,21 @@ public partial class Pawn : AnimatedEntity
 	/// </summary>
 	public override void Simulate( IClient cl )
 	{
-		base.Simulate( cl );
+		bool isServer = Game.IsServer;
+		bool isClient = Game.IsClient;
+		
+		if(isServer)
+			Log.Info("IsServer");
+		
+		if(isClient)
+			Log.Info("Client");
 		
 		if ( ActiveChildInput.IsValid() && ActiveChildInput.Owner == this )
 		{
 			ActiveChild = ActiveChildInput;
 		}
+		
+		SimulateActiveChild(cl, ActiveChild);
 		
 		// WSAD input normalized
 		var moveDirection = InputDirection.Normal;
@@ -149,8 +158,11 @@ public partial class Pawn : AnimatedEntity
 		animHelper.WithWishVelocity( Velocity );
 		animHelper.WithVelocity( Velocity );
 		
-		if ( ActiveChild != lastWeapon ) animHelper.TriggerDeploy();
+		if ( ActiveChild != lastWeapon ) 
+			animHelper.TriggerDeploy();
 
+		lastWeapon = ActiveChild;
+		
 		if ( ActiveChild is BaseCarriable carry )
 		{
 			carry.SimulateAnimator( animHelper );
@@ -161,9 +173,6 @@ public partial class Pawn : AnimatedEntity
 			animHelper.AimBodyWeight = 0.5f;
 		}
 
-		lastWeapon = ActiveChild;
-		
-		
 		// by default rotate character to mouse position
 		var mouseRay = Trace.Ray(MouseOrigin, MouseOrigin + MouseDirection * 1000).Run();
 		if ( mouseRay.Hit )
@@ -176,26 +185,6 @@ public partial class Pawn : AnimatedEntity
 			DebugOverlay.Sphere(lookAtPosition, 5, Color.Red);
 
 			animHelper.WithLookAt(lookAtPosition);
-		}
-		
-		SimulateActiveChild(cl, ActiveChild);
-		
-		// If we're running serverside and Attack1 was just pressed, spawn a ragdoll
-		if ( Game.IsServer && Input.Pressed( InputButton.PrimaryAttack ) )
-		{
-			if ( ActiveChild is Pistol pistol )
-			{
-				//Log.Info("Pistol");
-				//pistol.AttackPrimary();
-			}
-			
-			
-			// hit ground or objects with ray coming from "mouse position"
-			if ( mouseRay.Hit )
-			{
-				// Log.Info("!!! HIT " + mouseRay.HitPosition + " mouseDirection: " + MouseDirection);
-				// DebugOverlay.TraceResult(mouseRay, 1f);
-			}
 		}
 	}
 	
@@ -251,6 +240,7 @@ public partial class Pawn : AnimatedEntity
 			OnActiveChildChanged( LastActiveChild, child );
 			LastActiveChild = child;
 		}
+		Log.Info("Prection error");
 
 		if ( !LastActiveChild.IsValid() )
 			return;
